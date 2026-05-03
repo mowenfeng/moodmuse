@@ -1,4 +1,4 @@
-package com.example.myapplication.ui.screens
+package com.example.myapplication.cover.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -24,7 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.myapplication.domain.CoverUiState
+import com.example.myapplication.cover.domain.CoverUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

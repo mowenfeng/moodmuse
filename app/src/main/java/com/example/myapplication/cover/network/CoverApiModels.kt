@@ -1,4 +1,4 @@
-package com.example.myapplication.network
+package com.example.myapplication.cover.network
 
 data class CoverPreprocessRequest(
     val audio_url: String

@@ -1,5 +1,9 @@
 package com.example.myapplication.network
 
+import com.example.myapplication.cover.network.CoverGenerateRequest
+import com.example.myapplication.cover.network.CoverGenerateResponse
+import com.example.myapplication.cover.network.CoverPreprocessRequest
+import com.example.myapplication.cover.network.CoverPreprocessResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST

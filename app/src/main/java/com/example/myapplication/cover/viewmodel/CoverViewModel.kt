@@ -1,9 +1,9 @@
-package com.example.myapplication.viewmodel
+package com.example.myapplication.cover.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myapplication.data.CoverRepository
-import com.example.myapplication.domain.CoverUiState
+import com.example.myapplication.cover.data.CoverRepository
+import com.example.myapplication.cover.domain.CoverUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

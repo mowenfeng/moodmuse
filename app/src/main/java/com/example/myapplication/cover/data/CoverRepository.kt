@@ -1,10 +1,10 @@
-package com.example.myapplication.data
+package com.example.myapplication.cover.data
 
+import com.example.myapplication.cover.network.CoverGenerateRequest
+import com.example.myapplication.cover.network.CoverGenerateResponse
+import com.example.myapplication.cover.network.CoverPreprocessRequest
+import com.example.myapplication.cover.network.CoverPreprocessResponse
 import com.example.myapplication.network.ApiService
-import com.example.myapplication.network.CoverGenerateRequest
-import com.example.myapplication.network.CoverGenerateResponse
-import com.example.myapplication.network.CoverPreprocessRequest
-import com.example.myapplication.network.CoverPreprocessResponse
 import com.example.myapplication.network.NetworkModule
 
 class CoverRepository(

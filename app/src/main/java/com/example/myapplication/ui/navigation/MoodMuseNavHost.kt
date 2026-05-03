@@ -15,13 +15,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.cover.ui.CoverScreen
+import com.example.myapplication.cover.viewmodel.CoverViewModel
 import com.example.myapplication.domain.GenerationStatus
 import com.example.myapplication.ui.components.PaywallDialog
-import com.example.myapplication.ui.screens.CoverScreen
 import com.example.myapplication.ui.screens.GeneratingScreen
 import com.example.myapplication.ui.screens.HomeScreen
 import com.example.myapplication.ui.screens.ResultScreen
-import com.example.myapplication.viewmodel.CoverViewModel
 import com.example.myapplication.viewmodel.MoodMuseViewModel
 
 private object Routes {
