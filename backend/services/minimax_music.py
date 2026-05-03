@@ -23,6 +23,8 @@ class MiniMaxMusicService:
         self.poll_interval_s = float(os.getenv("MINIMAX_POLL_INTERVAL_S", "3"))
         self.output_format = (os.getenv("MINIMAX_OUTPUT_FORMAT", "url") or "url").lower()
         self.http_read_timeout_s = int(os.getenv("MINIMAX_HTTP_TIMEOUT_S", "300"))
+        # 翻唱第二步 /v1/music_generation 的 model；若账号报 2061 不支持 music-cover-free，可在 .env 改为账号支持的值（如 music-cover）
+        self.cover_generate_model = (os.getenv("MINIMAX_COVER_GENERATE_MODEL", "music-cover-free") or "music-cover-free").strip()
 
     def create_generation(self, prompt: str, duration: int) -> dict:
         if self.use_mock:
@@ -107,7 +109,7 @@ class MiniMaxMusicService:
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "music-cover-free",
+            "model": self.cover_generate_model,
             "prompt": prompt,
             "lyrics": lyrics,
             "cover_feature_id": cover_feature_id,
@@ -355,8 +357,15 @@ class MiniMaxMusicService:
         if code_int == 0:
             return
 
+        hint = ""
+        if code_int == 2061:
+            hint = (
+                " 提示：多为「当前套餐/Token 不含该 model」。"
+                "翻唱生成可在服务器 .env 设置 MINIMAX_COVER_GENERATE_MODEL（例如改为 music-cover，需与官方文档及你账号权限一致）后重启后端。"
+            )
+
         raise RuntimeError(
-            f"MiniMax API 错误（{context}）: status_code={code_int}, status_msg={status_msg!r}, raw={payload}"
+            f"MiniMax API 错误（{context}）: status_code={code_int}, status_msg={status_msg!r}, raw={payload}{hint}"
         )
 
     def _pick_first_str(self, obj: object, keys: set[str]) -> str | None:
