@@ -9,8 +9,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import retrofit2.HttpException
 
 class CoverViewModel(
@@ -19,6 +21,8 @@ class CoverViewModel(
     private companion object {
         /** 原始音频上限，避免 base64 后请求体过大导致超时/内存压力（MiniMax 文档约 50MB） */
         const val MAX_RAW_BYTES = 35 * 1024 * 1024
+        /** 预处理含大体积 base64 上传，适当放宽等待 */
+        const val PREPROCESS_TIMEOUT_MS = 300_000L
     }
 
     /** 与 `audio_url` 二选一；不放进 StateFlow，避免巨型字符串触发频繁重组 */
@@ -32,6 +36,7 @@ class CoverViewModel(
         _uiState.value = _uiState.value.copy(
             referenceAudioUrl = value,
             localPickedLabel = "",
+            isPreparingLocalAudio = false,
             errorMessage = null
         )
     }
@@ -53,18 +58,21 @@ class CoverViewModel(
             return
         }
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isPreparingLocalAudio = true, errorMessage = null)
             try {
                 val b64 = withContext(Dispatchers.Default) {
                     Base64.encodeToString(bytes, Base64.NO_WRAP)
                 }
                 pendingAudioBase64 = b64
                 _uiState.value = _uiState.value.copy(
+                    isPreparingLocalAudio = false,
                     referenceAudioUrl = "",
                     localPickedLabel = displayName.ifBlank { "已选本地音频" },
                     errorMessage = null
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
+                    isPreparingLocalAudio = false,
                     errorMessage = e.message?.takeIf { it.isNotBlank() } ?: "读取本地文件失败",
                     localPickedLabel = ""
                 )
@@ -101,10 +109,12 @@ class CoverViewModel(
                     isPreprocessing = true,
                     errorMessage = null
                 )
-                if (url.isNotBlank()) {
-                    repository.preprocess(audioUrl = url, audioBase64 = null)
-                } else {
-                    repository.preprocess(audioUrl = null, audioBase64 = b64)
+                withTimeout(PREPROCESS_TIMEOUT_MS) {
+                    if (url.isNotBlank()) {
+                        repository.preprocess(audioUrl = url, audioBase64 = null)
+                    } else {
+                        repository.preprocess(audioUrl = null, audioBase64 = b64)
+                    }
                 }
             }.onSuccess { resp ->
                 val lyrics = resp.formatted_lyrics.orEmpty()
@@ -117,9 +127,14 @@ class CoverViewModel(
                     errorMessage = null
                 )
             }.onFailure { e ->
+                val msg = when (e) {
+                    is TimeoutCancellationException ->
+                        "预处理超时（常见：本机音频较大+网络慢）。可换 Wi‑Fi、换更短 mp3，或用电脑脚本先测。"
+                    else -> e.toReadableMessage()
+                }
                 _uiState.value = _uiState.value.copy(
                     isPreprocessing = false,
-                    errorMessage = e.toReadableMessage()
+                    errorMessage = msg
                 )
             }
         }

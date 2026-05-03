@@ -111,9 +111,29 @@ fun CoverScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = "说明：在电脑 PowerShell 里跑脚本成功，不会自动出现在模拟器里；请在下方「从本机选择音频」或填写公网 audio_url。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-            if (state.isPreprocessing || state.isGenerating) {
+            if (!state.errorMessage.isNullOrBlank()) {
+                Text(
+                    text = state.errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (state.isPreparingLocalAudio || state.isPreprocessing || state.isGenerating) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            if (state.isPreparingLocalAudio) {
+                Text(
+                    text = "正在读取并编码本地音频（大文件可能要几十秒）…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             OutlinedTextField(
@@ -122,13 +142,13 @@ fun CoverScreen(
                 label = { Text("参考音频 audio_url（与下方本机文件二选一）") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             )
 
             OutlinedButton(
                 onClick = { pickAudio.launch("audio/*") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             ) {
                 Text("从本机选择音频（走 audio_base64）")
             }
@@ -146,13 +166,13 @@ fun CoverScreen(
                 label = { Text("翻唱风格 prompt") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             )
 
             Button(
                 onClick = onPreprocessClick,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             ) {
                 Text(if (state.isPreprocessing) "预处理中…" else "预处理（music-cover）")
             }
@@ -163,7 +183,7 @@ fun CoverScreen(
                 label = { Text("歌词（formatted_lyrics）") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 6,
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             )
 
             Text(text = "调试信息", style = MaterialTheme.typography.titleSmall)
@@ -183,17 +203,9 @@ fun CoverScreen(
             Button(
                 onClick = onGenerateClick,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isPreprocessing && !state.isGenerating
+                enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             ) {
                 Text(if (state.isGenerating) "生成中…" else "生成翻唱（music-cover-free）")
-            }
-
-            if (!state.errorMessage.isNullOrBlank()) {
-                Text(
-                    text = state.errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
 
             if (state.outputAudioUrl.isNotBlank()) {

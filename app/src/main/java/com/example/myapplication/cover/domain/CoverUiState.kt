@@ -12,5 +12,7 @@ data class CoverUiState(
     val outputAudioUrl: String = "",
     val isPreprocessing: Boolean = false,
     val isGenerating: Boolean = false,
+    /** 本机选歌后正在读文件 / Base64 编码，避免用户以为卡住 */
+    val isPreparingLocalAudio: Boolean = false,
     val errorMessage: String? = null
 )
