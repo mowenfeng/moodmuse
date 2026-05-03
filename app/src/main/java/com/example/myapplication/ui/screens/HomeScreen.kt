@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedAssistChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ fun HomeScreen(
     errorMessage: String?,
     onEmotionChange: (String) -> Unit,
     onQuickEmotionClick: (String) -> Unit,
+    onOpenCover: () -> Unit,
     onGenerateClick: () -> Unit
 ) {
     val quickEmotions = remember { listOf("孤独", "开心", "失恋", "治愈", "夜晚开车", "电影感") }
@@ -65,6 +67,14 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+
+        OutlinedButton(
+            onClick = onOpenCover,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = 14.dp)
+        ) {
+            Text("AI 翻唱（music-cover）")
         }
 
         Button(

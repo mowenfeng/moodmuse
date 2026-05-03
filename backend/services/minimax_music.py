@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from uuid import uuid4
@@ -32,6 +33,99 @@ class MiniMaxMusicService:
                 "`MINIMAX_API_KEY=...`，并确认变量名不是把 key 写进了 getenv 的第一个参数。"
             )
         return self._real_generation(prompt=prompt, duration=duration)
+
+    def cover_preprocess(self, audio_url: str) -> dict:
+        if self.use_mock:
+            return {
+                "cover_feature_id": f"mock-cover-{uuid4().hex[:12]}",
+                "formatted_lyrics": "[mock verse]\nmock lyrics line 1\nmock lyrics line 2\n",
+                "audio_duration": 12.34,
+                "structure_result": json.dumps({"mock": True}, ensure_ascii=False),
+                "raw": {"mock": True},
+            }
+        if not self.api_key:
+            raise RuntimeError("MINIMAX_API_KEY 未配置")
+
+        url = f"{self.base_url}/v1/music_cover_preprocess"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "music-cover",
+            "audio_url": audio_url,
+        }
+        timeout_tuple = (30, self.http_read_timeout_s)
+        resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)
+        resp.raise_for_status()
+        data = resp.json()
+        self._raise_if_base_resp_error(data, context="music_cover_preprocess")
+
+        inner = data.get("data") if isinstance(data, dict) else None
+        inner_dict = inner if isinstance(inner, dict) else {}
+        root_dict = data if isinstance(data, dict) else {}
+
+        cover_feature_id = self._pick_first_str(inner_dict, {"cover_feature_id", "cover_feature", "feature_id"})
+        if not cover_feature_id:
+            cover_feature_id = self._pick_first_str(root_dict, {"cover_feature_id", "cover_feature", "feature_id"})
+
+        formatted_lyrics = self._pick_first_str(inner_dict, {"formatted_lyrics", "lyrics"})
+        if not formatted_lyrics:
+            formatted_lyrics = self._pick_first_str(root_dict, {"formatted_lyrics", "lyrics"})
+
+        audio_duration = self._pick_first_number(inner_dict, {"audio_duration", "duration"})
+        if audio_duration is None:
+            audio_duration = self._pick_first_number(root_dict, {"audio_duration", "duration"})
+
+        structure_result = self._stringify_structure(inner_dict.get("structure_result"))
+        if structure_result is None:
+            structure_result = self._stringify_structure(root_dict.get("structure_result"))
+
+        return {
+            "cover_feature_id": cover_feature_id,
+            "formatted_lyrics": formatted_lyrics,
+            "audio_duration": audio_duration,
+            "structure_result": structure_result,
+            "raw": data if isinstance(data, dict) else {"value": data},
+        }
+
+    def cover_generate(self, prompt: str, lyrics: str, cover_feature_id: str) -> dict:
+        if self.use_mock:
+            demo_mp3 = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            return {
+                "audio_url": demo_mp3,
+                "preview_url": demo_mp3,
+                "raw": {"mock": True},
+            }
+        if not self.api_key:
+            raise RuntimeError("MINIMAX_API_KEY 未配置")
+
+        url = f"{self.base_url}/v1/music_generation"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "music-cover-free",
+            "prompt": prompt,
+            "lyrics": lyrics,
+            "cover_feature_id": cover_feature_id,
+            "output_format": "url",
+            "audio_setting": {
+                "sample_rate": int(os.getenv("MINIMAX_AUDIO_SAMPLE_RATE", "44100")),
+                "bitrate": int(os.getenv("MINIMAX_AUDIO_BITRATE", "256000")),
+                "format": os.getenv("MINIMAX_AUDIO_FORMAT", "mp3"),
+            },
+        }
+        timeout_tuple = (30, self.http_read_timeout_s)
+        resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)
+        resp.raise_for_status()
+        data = resp.json()
+        self._raise_if_base_resp_error(data, context="music_cover music_generation")
+
+        audio_url = self._extract_audio_url(data)
+        preview_url = audio_url
+        return {"audio_url": audio_url, "preview_url": preview_url, "raw": data if isinstance(data, dict) else {"value": data}}
 
     def _mock_generation(self, prompt: str, duration: int) -> dict:
         fake_id = f"mock-{uuid4().hex[:12]}"
@@ -75,15 +169,7 @@ class MiniMaxMusicService:
         timeout_tuple = (30, self.http_read_timeout_s)
 
         def post_json(url: str, body: dict) -> requests.Response:
-            last_err: Exception | None = None
-            for attempt in range(1, 4):
-                try:
-                    return requests.post(url, headers=headers, json=body, timeout=timeout_tuple)
-                except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout) as e:
-                    last_err = e
-                    time.sleep(2.0 * attempt)
-            assert last_err is not None
-            raise last_err
+            return self._post_json(url, headers=headers, body=body, timeout_tuple=timeout_tuple)
 
         def get_json(url: str, params: dict) -> requests.Response:
             last_err: Exception | None = None
@@ -151,6 +237,56 @@ class MiniMaxMusicService:
             time.sleep(self.poll_interval_s)
 
         raise TimeoutError(f"MiniMax 任务超时，task_id={provider_task_id}, last={last_payload}")
+
+    def _post_json(self, url: str, headers: dict, body: dict, timeout_tuple: tuple[int, int]) -> requests.Response:
+        last_err: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                return requests.post(url, headers=headers, json=body, timeout=timeout_tuple)
+            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout) as e:
+                last_err = e
+                time.sleep(2.0 * attempt)
+        assert last_err is not None
+        raise last_err
+
+    def _pick_first_number(self, obj: object, keys: set[str]) -> float | None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in keys:
+                    n = self._coerce_number(v)
+                    if n is not None:
+                        return n
+                nested = self._pick_first_number(v, keys)
+                if nested is not None:
+                    return nested
+        elif isinstance(obj, list):
+            for item in obj:
+                nested = self._pick_first_number(item, keys)
+                if nested is not None:
+                    return nested
+        return None
+
+    def _coerce_number(self, value: object) -> float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int | float):
+            return float(value)
+        if isinstance(value, str) and value.strip():
+            try:
+                return float(value.strip())
+            except ValueError:
+                return None
+        return None
+
+    def _stringify_structure(self, value: object) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except TypeError:
+            return str(value)
 
     def _extract_audio_url(self, payload: dict) -> str | None:
         def _maybe_playable_url(value: str, *, field: str) -> str | None:

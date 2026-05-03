@@ -11,20 +11,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.domain.GenerationStatus
 import com.example.myapplication.ui.components.PaywallDialog
+import com.example.myapplication.ui.screens.CoverScreen
 import com.example.myapplication.ui.screens.GeneratingScreen
 import com.example.myapplication.ui.screens.HomeScreen
 import com.example.myapplication.ui.screens.ResultScreen
+import com.example.myapplication.viewmodel.CoverViewModel
 import com.example.myapplication.viewmodel.MoodMuseViewModel
 
 private object Routes {
     const val Home = "home"
     const val Generating = "generating"
     const val Result = "result"
+    const val Cover = "cover"
 }
 
 @Composable
@@ -88,7 +92,22 @@ fun MoodMuseNavHost(vm: MoodMuseViewModel) {
                 errorMessage = uiState.errorMessage,
                 onEmotionChange = vm::updateEmotionText,
                 onQuickEmotionClick = vm::applyQuickEmotion,
+                onOpenCover = { navController.navigate(Routes.Cover) },
                 onGenerateClick = vm::generateMusic
+            )
+        }
+
+        composable(Routes.Cover) {
+            val coverVm: CoverViewModel = viewModel()
+            val coverState by coverVm.uiState.collectAsState()
+            CoverScreen(
+                state = coverState,
+                onBack = { navController.popBackStack() },
+                onReferenceAudioUrlChange = coverVm::updateReferenceAudioUrl,
+                onStylePromptChange = coverVm::updateStylePrompt,
+                onLyricsChange = coverVm::updateLyrics,
+                onPreprocessClick = coverVm::preprocess,
+                onGenerateClick = coverVm::generateCover
             )
         }
 

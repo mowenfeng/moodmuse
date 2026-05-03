@@ -7,6 +7,10 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from models.schemas import (
+    CoverGenerateRequest,
+    CoverGenerateResponse,
+    CoverPreprocessRequest,
+    CoverPreprocessResponse,
     DownloadResponse,
     GenerateRequest,
     GenerateResponse,
@@ -100,3 +104,35 @@ def download(task_id: str) -> DownloadResponse:
     if not task.audio_url:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="audio not ready")
     return DownloadResponse(task_id=task_id, download_url=task.audio_url)
+
+
+@app.post("/api/cover/preprocess", response_model=CoverPreprocessResponse)
+def cover_preprocess(payload: CoverPreprocessRequest) -> CoverPreprocessResponse:
+    try:
+        result = minimax_service.cover_preprocess(audio_url=payload.audio_url.strip())
+        return CoverPreprocessResponse(
+            cover_feature_id=result.get("cover_feature_id"),
+            formatted_lyrics=result.get("formatted_lyrics"),
+            audio_duration=result.get("audio_duration"),
+            structure_result=result.get("structure_result"),
+            raw=result.get("raw") if isinstance(result.get("raw"), dict) else None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e)[:800]) from e
+
+
+@app.post("/api/cover/generate", response_model=CoverGenerateResponse)
+def cover_generate(payload: CoverGenerateRequest) -> CoverGenerateResponse:
+    try:
+        result = minimax_service.cover_generate(
+            prompt=payload.prompt.strip(),
+            lyrics=payload.lyrics.strip(),
+            cover_feature_id=payload.cover_feature_id.strip(),
+        )
+        return CoverGenerateResponse(
+            audio_url=result.get("audio_url"),
+            preview_url=result.get("preview_url"),
+            raw=result.get("raw") if isinstance(result.get("raw"), dict) else None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e)[:800]) from e

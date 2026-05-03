@@ -17,6 +17,12 @@ interface ApiService {
 
     @GET("api/tasks/{taskId}/download")
     suspend fun download(@Path("taskId") taskId: String): DownloadResponse
+
+    @POST("api/cover/preprocess")
+    suspend fun coverPreprocess(@Body request: CoverPreprocessRequest): CoverPreprocessResponse
+
+    @POST("api/cover/generate")
+    suspend fun coverGenerate(@Body request: CoverGenerateRequest): CoverGenerateResponse
 }
 
 typealias MoodMuseApi = ApiService

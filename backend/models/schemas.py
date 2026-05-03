@@ -30,3 +30,27 @@ class MockPayResponse(BaseModel):
 class DownloadResponse(BaseModel):
     task_id: str
     download_url: str
+
+
+class CoverPreprocessRequest(BaseModel):
+    audio_url: str = Field(min_length=1)
+
+
+class CoverPreprocessResponse(BaseModel):
+    cover_feature_id: str | None = None
+    formatted_lyrics: str | None = None
+    audio_duration: float | None = None
+    structure_result: str | None = None
+    raw: dict | None = None
+
+
+class CoverGenerateRequest(BaseModel):
+    prompt: str = Field(min_length=1)
+    lyrics: str = Field(min_length=1)
+    cover_feature_id: str = Field(min_length=1)
+
+
+class CoverGenerateResponse(BaseModel):
+    audio_url: str | None = None
+    preview_url: str | None = None
+    raw: dict | None = None
