@@ -16,8 +16,9 @@ object NetworkModule {
         // 创建任务通常很快返回 task_id，但网络波动和服务端排队会拉长请求时间，适配 2~3 分钟链路。
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(180, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .callTimeout(210, TimeUnit.SECONDS)
+        // 翻唱预处理可能携带较大 audio_base64，上传耗时更长
+        .writeTimeout(180, TimeUnit.SECONDS)
+        .callTimeout(300, TimeUnit.SECONDS)
         .addInterceptor(loggingInterceptor)
         .build()
 

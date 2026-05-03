@@ -109,7 +109,10 @@ def download(task_id: str) -> DownloadResponse:
 @app.post("/api/cover/preprocess", response_model=CoverPreprocessResponse)
 def cover_preprocess(payload: CoverPreprocessRequest) -> CoverPreprocessResponse:
     try:
-        result = minimax_service.cover_preprocess(audio_url=payload.audio_url.strip())
+        result = minimax_service.cover_preprocess(
+            audio_url=payload.audio_url,
+            audio_base64=payload.audio_base64,
+        )
         return CoverPreprocessResponse(
             cover_feature_id=result.get("cover_feature_id"),
             formatted_lyrics=result.get("formatted_lyrics"),

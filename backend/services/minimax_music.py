@@ -34,7 +34,7 @@ class MiniMaxMusicService:
             )
         return self._real_generation(prompt=prompt, duration=duration)
 
-    def cover_preprocess(self, audio_url: str) -> dict:
+    def cover_preprocess(self, audio_url: str | None = None, audio_base64: str | None = None) -> dict:
         if self.use_mock:
             return {
                 "cover_feature_id": f"mock-cover-{uuid4().hex[:12]}",
@@ -51,10 +51,11 @@ class MiniMaxMusicService:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
-            "model": "music-cover",
-            "audio_url": audio_url,
-        }
+        payload: dict = {"model": "music-cover"}
+        if audio_url:
+            payload["audio_url"] = audio_url
+        else:
+            payload["audio_base64"] = audio_base64
         timeout_tuple = (30, self.http_read_timeout_s)
         resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)
         resp.raise_for_status()

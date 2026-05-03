@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class GenerateRequest(BaseModel):
@@ -33,7 +33,22 @@ class DownloadResponse(BaseModel):
 
 
 class CoverPreprocessRequest(BaseModel):
-    audio_url: str = Field(min_length=1)
+    """与 MiniMax 一致：`audio_url` 与 `audio_base64` 二选一。"""
+
+    audio_url: str | None = None
+    audio_base64: str | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_audio_source(self) -> "CoverPreprocessRequest":
+        u = (self.audio_url or "").strip()
+        b = (self.audio_base64 or "").strip()
+        if not u and not b:
+            raise ValueError("必须提供 audio_url 或 audio_base64 之一")
+        if u and b:
+            raise ValueError("audio_url 与 audio_base64 只能二选一")
+        self.audio_url = u or None
+        self.audio_base64 = b or None
+        return self
 
 
 class CoverPreprocessResponse(BaseModel):

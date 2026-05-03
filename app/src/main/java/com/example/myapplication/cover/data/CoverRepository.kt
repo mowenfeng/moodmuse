@@ -10,8 +10,8 @@ import com.example.myapplication.network.NetworkModule
 class CoverRepository(
     private val api: ApiService = NetworkModule.apiService
 ) {
-    suspend fun preprocess(audioUrl: String): CoverPreprocessResponse {
-        return api.coverPreprocess(CoverPreprocessRequest(audio_url = audioUrl))
+    suspend fun preprocess(audioUrl: String? = null, audioBase64: String? = null): CoverPreprocessResponse {
+        return api.coverPreprocess(CoverPreprocessRequest(audio_url = audioUrl, audio_base64 = audioBase64))
     }
 
     suspend fun generateCover(

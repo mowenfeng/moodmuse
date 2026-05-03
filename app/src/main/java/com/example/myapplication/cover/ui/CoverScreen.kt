@@ -1,7 +1,11 @@
 package com.example.myapplication.cover.ui
 
+import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,10 +25,35 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.cover.domain.CoverUiState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private fun resolveDisplayName(context: android.content.Context, uri: Uri): String {
+    if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { c ->
+            if (c.moveToFirst()) {
+                val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (i >= 0) {
+                    val n = c.getString(i)
+                    if (!n.isNullOrBlank()) return n
+                }
+            }
+        }
+    }
+    return uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null } ?: "audio"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +64,29 @@ fun CoverScreen(
     onStylePromptChange: (String) -> Unit,
     onLyricsChange: (String) -> Unit,
     onPreprocessClick: () -> Unit,
-    onGenerateClick: () -> Unit
+    onGenerateClick: () -> Unit,
+    onLocalAudioPicked: (displayName: String, bytes: ByteArray) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val pickAudio = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null) {
+                withContext(Dispatchers.Main) {
+                    onLocalAudioPicked("(无法打开文件)", byteArrayOf())
+                }
+                return@launch
+            }
+            val name = resolveDisplayName(context, uri)
+            withContext(Dispatchers.Main) {
+                onLocalAudioPicked(name, bytes)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -70,11 +119,26 @@ fun CoverScreen(
             OutlinedTextField(
                 value = state.referenceAudioUrl,
                 onValueChange = onReferenceAudioUrlChange,
-                label = { Text("参考音频 audio_url（后续可扩展本地上传）") },
+                label = { Text("参考音频 audio_url（与下方本机文件二选一）") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 enabled = !state.isPreprocessing && !state.isGenerating
             )
+
+            OutlinedButton(
+                onClick = { pickAudio.launch("audio/*") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isPreprocessing && !state.isGenerating
+            ) {
+                Text("从本机选择音频（走 audio_base64）")
+            }
+            if (state.localPickedLabel.isNotBlank()) {
+                Text(
+                    text = "已选本地：${state.localPickedLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             OutlinedTextField(
                 value = state.stylePrompt,

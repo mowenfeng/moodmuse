@@ -1,7 +1,8 @@
 package com.example.myapplication.cover.network
 
 data class CoverPreprocessRequest(
-    val audio_url: String
+    val audio_url: String? = null,
+    val audio_base64: String? = null
 )
 
 data class CoverPreprocessResponse(

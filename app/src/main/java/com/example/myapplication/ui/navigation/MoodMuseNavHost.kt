@@ -107,7 +107,8 @@ fun MoodMuseNavHost(vm: MoodMuseViewModel) {
                 onStylePromptChange = coverVm::updateStylePrompt,
                 onLyricsChange = coverVm::updateLyrics,
                 onPreprocessClick = coverVm::preprocess,
-                onGenerateClick = coverVm::generateCover
+                onGenerateClick = coverVm::generateCover,
+                onLocalAudioPicked = coverVm::ingestLocalAudio
             )
         }
 
