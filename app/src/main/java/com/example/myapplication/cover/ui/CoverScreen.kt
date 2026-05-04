@@ -207,7 +207,7 @@ fun CoverScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isPreparingLocalAudio && !state.isPreprocessing && !state.isGenerating
             ) {
-                Text(if (state.isGenerating) "生成中…" else "生成翻唱（music-cover-free）")
+                Text(if (state.isGenerating) "生成中…" else "生成翻唱（music-cover）")
             }
 
             if (state.outputAudioUrl.isNotBlank()) {
