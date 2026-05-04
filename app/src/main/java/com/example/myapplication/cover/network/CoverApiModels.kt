@@ -23,7 +23,9 @@ data class CoverGenerateRequest(
     val cover_feature_id: String,
     val audio_duration: Double? = null,
     val dtw_result: JsonElement? = null,
-    val beat_result: JsonElement? = null
+    val beat_result: JsonElement? = null,
+    /** 预处理返回的 structure_result，供服务端在缺少 dtw/beat 时兼容填参 */
+    val structure_result: String? = null
 )
 
 data class CoverGenerateResponse(

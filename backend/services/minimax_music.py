@@ -107,12 +107,13 @@ class MiniMaxMusicService:
         audio_duration: float | None = None,
         dtw_result: object | None = None,
         beat_result: object | None = None,
+        structure_result: str | None = None,
     ) -> dict:
         """POST /v1/music_generation — 文档：https://platform.minimaxi.com/docs/api-reference/music-generation
 
-        两步翻唱：model 为 ``music-cover`` / ``music-cover-free``，与 ``cover_feature_id`` 互斥于 ``audio_url`` / ``audio_base64``。
-        公开文档列出的请求体字段以外，部分网关在对 ``music-cover``（付费）校验时会要求附带 ``audio_duration``、``dtw_result``、``beat_result``，
-        故仅在 model 为 ``music-cover`` 时附加这三项（若有）；``music-cover-free`` 严格按公开 schema，不附加以免多余字段触发校验。
+        两步翻唱：``cover_feature_id`` 与 ``audio_url`` / ``audio_base64`` 互斥。
+        部分网关（amadeus）在 Cover 模式会校验 ``audio_duration``、``dtw_result``、``beat_result`` 三者存在；
+        若预处理未单独返回 dtw/beat，则用 ``structure_result`` 解析后的对象作为兼容填参，并在缺少 ``audio_duration`` 时尝试用 segments 的最大 end。
         """
         if self.use_mock:
             demo_mp3 = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
@@ -141,14 +142,18 @@ class MiniMaxMusicService:
                 "format": os.getenv("MINIMAX_AUDIO_FORMAT", "mp3"),
             },
         }
-        # 与 minimaxi.com 公开 schema 对齐：限免模型仅传文档所列字段；付费 music-cover 按需附带网关额外要求的分析字段
-        if self.cover_generate_model == "music-cover":
-            if audio_duration is not None:
-                payload["audio_duration"] = audio_duration
-            if dtw_result is not None:
-                payload["dtw_result"] = self._coerce_json_blob(dtw_result)
-            if beat_result is not None:
-                payload["beat_result"] = self._coerce_json_blob(beat_result)
+        dur, dtw_b, beat_b = self._resolve_cover_analysis_bundle(
+            audio_duration=audio_duration,
+            dtw_result=dtw_result,
+            beat_result=beat_result,
+            structure_result=structure_result,
+        )
+        if dur is not None:
+            payload["audio_duration"] = dur
+        if dtw_b is not None:
+            payload["dtw_result"] = dtw_b
+        if beat_b is not None:
+            payload["beat_result"] = beat_b
 
         timeout_tuple = (30, self.http_read_timeout_s)
         resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)
@@ -300,6 +305,43 @@ class MiniMaxMusicService:
                 except json.JSONDecodeError:
                     pass
         return value
+
+    def _resolve_cover_analysis_bundle(
+        self,
+        *,
+        audio_duration: float | None,
+        dtw_result: object | None,
+        beat_result: object | None,
+        structure_result: str | None,
+    ) -> tuple[float | None, object | None, object | None]:
+        """补齐网关 Cover 模式常校验的 duration / dtw / beat。"""
+        struct_obj: object | None = None
+        if isinstance(structure_result, str) and structure_result.strip():
+            struct_obj = self._coerce_json_blob(structure_result.strip())
+            if not isinstance(struct_obj, dict):
+                struct_obj = None
+
+        duration = audio_duration
+        if duration is None and isinstance(struct_obj, dict):
+            segs = struct_obj.get("segments")
+            if isinstance(segs, list):
+                max_end: float | None = None
+                for seg in segs:
+                    if isinstance(seg, dict):
+                        end_v = seg.get("end")
+                        if isinstance(end_v, (int, float)):
+                            e = float(end_v)
+                            max_end = e if max_end is None else max(max_end, e)
+                if max_end is not None:
+                    duration = max_end
+
+        dtw_b = self._coerce_json_blob(dtw_result) if dtw_result is not None else None
+        beat_b = self._coerce_json_blob(beat_result) if beat_result is not None else None
+        if dtw_b is None and beat_b is None and isinstance(struct_obj, dict):
+            dtw_b = struct_obj
+            beat_b = struct_obj
+
+        return duration, dtw_b, beat_b
 
     def _post_json(self, url: str, headers: dict, body: dict, timeout_tuple: tuple[int, int]) -> requests.Response:
         last_err: Exception | None = None

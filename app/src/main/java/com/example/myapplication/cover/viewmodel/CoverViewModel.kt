@@ -196,7 +196,8 @@ class CoverViewModel(
                     coverFeatureId = featureId,
                     audioDuration = deferredAudioDuration ?: _uiState.value.audioDuration,
                     dtwResult = deferredDtw,
-                    beatResult = deferredBeat
+                    beatResult = deferredBeat,
+                    structureResult = _uiState.value.structureResult.takeIf { it.isNotBlank() }
                 )
             }.onSuccess { resp ->
                 val out = (

@@ -71,6 +71,8 @@ class CoverGenerateRequest(BaseModel):
     audio_duration: float | None = None
     dtw_result: Any | None = None
     beat_result: Any | None = None
+    # 预处理返回的 structure_result（JSON 字符串）；网关未给 dtw/beat 时由服务端用于兼容填参
+    structure_result: str | None = None
 
 
 class CoverGenerateResponse(BaseModel):

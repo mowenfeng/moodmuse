@@ -21,7 +21,8 @@ class CoverRepository(
         coverFeatureId: String,
         audioDuration: Double? = null,
         dtwResult: JsonElement? = null,
-        beatResult: JsonElement? = null
+        beatResult: JsonElement? = null,
+        structureResult: String? = null
     ): CoverGenerateResponse {
         return api.coverGenerate(
             CoverGenerateRequest(
@@ -30,7 +31,8 @@ class CoverRepository(
                 cover_feature_id = coverFeatureId,
                 audio_duration = audioDuration,
                 dtw_result = dtwResult,
-                beat_result = beatResult
+                beat_result = beatResult,
+                structure_result = structureResult
             )
         )
     }

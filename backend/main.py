@@ -149,6 +149,7 @@ def cover_generate(payload: CoverGenerateRequest) -> CoverGenerateResponse:
             audio_duration=payload.audio_duration,
             dtw_result=payload.dtw_result,
             beat_result=payload.beat_result,
+            structure_result=payload.structure_result,
         )
         return CoverGenerateResponse(
             audio_url=result.get("audio_url"),
