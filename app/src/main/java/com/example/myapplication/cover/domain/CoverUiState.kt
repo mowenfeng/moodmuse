@@ -9,6 +9,9 @@ data class CoverUiState(
     val coverFeatureId: String = "",
     val audioDuration: Double? = null,
     val structureResult: String = "",
+    /** 预处理是否带回 music-cover 第二步常见所需的分析字段（便于自查） */
+    val hasDtwFromPreprocess: Boolean = false,
+    val hasBeatFromPreprocess: Boolean = false,
     val outputAudioUrl: String = "",
     val isPreprocessing: Boolean = false,
     val isGenerating: Boolean = false,

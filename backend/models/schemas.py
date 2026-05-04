@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -56,6 +58,9 @@ class CoverPreprocessResponse(BaseModel):
     formatted_lyrics: str | None = None
     audio_duration: float | None = None
     structure_result: str | None = None
+    # music-cover 第二步有时需要（由预处理接口返回，字段名因网关可能略有差异）
+    dtw_result: Any | None = None
+    beat_result: Any | None = None
     raw: dict | None = None
 
 
@@ -63,6 +68,9 @@ class CoverGenerateRequest(BaseModel):
     prompt: str = Field(min_length=1)
     lyrics: str = Field(min_length=1)
     cover_feature_id: str = Field(min_length=1)
+    audio_duration: float | None = None
+    dtw_result: Any | None = None
+    beat_result: Any | None = None
 
 
 class CoverGenerateResponse(BaseModel):

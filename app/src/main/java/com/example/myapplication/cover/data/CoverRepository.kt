@@ -1,5 +1,6 @@
 package com.example.myapplication.cover.data
 
+import com.google.gson.JsonElement
 import com.example.myapplication.cover.network.CoverGenerateRequest
 import com.example.myapplication.cover.network.CoverGenerateResponse
 import com.example.myapplication.cover.network.CoverPreprocessRequest
@@ -17,13 +18,19 @@ class CoverRepository(
     suspend fun generateCover(
         prompt: String,
         lyrics: String,
-        coverFeatureId: String
+        coverFeatureId: String,
+        audioDuration: Double? = null,
+        dtwResult: JsonElement? = null,
+        beatResult: JsonElement? = null
     ): CoverGenerateResponse {
         return api.coverGenerate(
             CoverGenerateRequest(
                 prompt = prompt,
                 lyrics = lyrics,
-                cover_feature_id = coverFeatureId
+                cover_feature_id = coverFeatureId,
+                audio_duration = audioDuration,
+                dtw_result = dtwResult,
+                beat_result = beatResult
             )
         )
     }

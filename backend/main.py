@@ -118,6 +118,8 @@ def cover_preprocess(payload: CoverPreprocessRequest) -> CoverPreprocessResponse
             formatted_lyrics=result.get("formatted_lyrics"),
             audio_duration=result.get("audio_duration"),
             structure_result=result.get("structure_result"),
+            dtw_result=result.get("dtw_result"),
+            beat_result=result.get("beat_result"),
             raw=result.get("raw") if isinstance(result.get("raw"), dict) else None,
         )
     except Exception as e:
@@ -131,6 +133,9 @@ def cover_generate(payload: CoverGenerateRequest) -> CoverGenerateResponse:
             prompt=payload.prompt.strip(),
             lyrics=payload.lyrics.strip(),
             cover_feature_id=payload.cover_feature_id.strip(),
+            audio_duration=payload.audio_duration,
+            dtw_result=payload.dtw_result,
+            beat_result=payload.beat_result,
         )
         return CoverGenerateResponse(
             audio_url=result.get("audio_url"),

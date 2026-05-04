@@ -84,15 +84,28 @@ class MiniMaxMusicService:
         if structure_result is None:
             structure_result = self._stringify_structure(root_dict.get("structure_result"))
 
+        dtw_blob = self._find_first_blob(data, ("dtw_result", "dtwResult"))
+        beat_blob = self._find_first_blob(data, ("beat_result", "beatResult"))
+
         return {
             "cover_feature_id": cover_feature_id,
             "formatted_lyrics": formatted_lyrics,
             "audio_duration": audio_duration,
             "structure_result": structure_result,
+            "dtw_result": self._coerce_json_blob(dtw_blob) if dtw_blob is not None else None,
+            "beat_result": self._coerce_json_blob(beat_blob) if beat_blob is not None else None,
             "raw": data if isinstance(data, dict) else {"value": data},
         }
 
-    def cover_generate(self, prompt: str, lyrics: str, cover_feature_id: str) -> dict:
+    def cover_generate(
+        self,
+        prompt: str,
+        lyrics: str,
+        cover_feature_id: str,
+        audio_duration: float | None = None,
+        dtw_result: object | None = None,
+        beat_result: object | None = None,
+    ) -> dict:
         if self.use_mock:
             demo_mp3 = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
             return {
@@ -120,6 +133,14 @@ class MiniMaxMusicService:
                 "format": os.getenv("MINIMAX_AUDIO_FORMAT", "mp3"),
             },
         }
+        # music-cover（非 free）第二步常见要求：与 preprocess 返回的分析字段一并提交
+        if audio_duration is not None:
+            payload["audio_duration"] = audio_duration
+        if dtw_result is not None:
+            payload["dtw_result"] = self._coerce_json_blob(dtw_result)
+        if beat_result is not None:
+            payload["beat_result"] = self._coerce_json_blob(beat_result)
+
         timeout_tuple = (30, self.http_read_timeout_s)
         resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)
         resp.raise_for_status()
@@ -240,6 +261,36 @@ class MiniMaxMusicService:
             time.sleep(self.poll_interval_s)
 
         raise TimeoutError(f"MiniMax 任务超时，task_id={provider_task_id}, last={last_payload}")
+
+    def _find_first_blob(self, obj: object, key_candidates: tuple[str, ...]) -> object | None:
+        """在任意嵌套 dict/list 中查找首个存在的键（网关可能把字段放在 data/extra 等子对象里）。"""
+        if isinstance(obj, dict):
+            for k in key_candidates:
+                if k in obj:
+                    v = obj[k]
+                    if v is not None and v != "":
+                        return v
+            for v in obj.values():
+                found = self._find_first_blob(v, key_candidates)
+                if found is not None:
+                    return found
+        elif isinstance(obj, list):
+            for item in obj:
+                found = self._find_first_blob(item, key_candidates)
+                if found is not None:
+                    return found
+        return None
+
+    def _coerce_json_blob(self, value: object) -> object:
+        """若接口返回 JSON 字符串，则解析为对象再带给下游请求。"""
+        if isinstance(value, str):
+            s = value.strip()
+            if s.startswith("{") or s.startswith("["):
+                try:
+                    return json.loads(s)
+                except json.JSONDecodeError:
+                    pass
+        return value
 
     def _post_json(self, url: str, headers: dict, body: dict, timeout_tuple: tuple[int, int]) -> requests.Response:
         last_err: Exception | None = None

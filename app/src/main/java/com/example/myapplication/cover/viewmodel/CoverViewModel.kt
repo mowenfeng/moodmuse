@@ -1,6 +1,7 @@
 package com.example.myapplication.cover.viewmodel
 
 import android.util.Base64
+import com.google.gson.JsonElement
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.cover.data.CoverRepository
@@ -28,15 +29,29 @@ class CoverViewModel(
     /** 与 `audio_url` 二选一；不放进 StateFlow，避免巨型字符串触发频繁重组 */
     private var pendingAudioBase64: String? = null
 
+    /** 预处理返回、生成时需一并提交的字段（music-cover 第二步常见必填） */
+    private var deferredAudioDuration: Double? = null
+    private var deferredDtw: JsonElement? = null
+    private var deferredBeat: JsonElement? = null
+
+    private fun clearDeferredPreprocessExtras() {
+        deferredAudioDuration = null
+        deferredDtw = null
+        deferredBeat = null
+    }
+
     private val _uiState = MutableStateFlow(CoverUiState())
     val uiState: StateFlow<CoverUiState> = _uiState.asStateFlow()
 
     fun updateReferenceAudioUrl(value: String) {
         pendingAudioBase64 = null
+        clearDeferredPreprocessExtras()
         _uiState.value = _uiState.value.copy(
             referenceAudioUrl = value,
             localPickedLabel = "",
             isPreparingLocalAudio = false,
+            hasDtwFromPreprocess = false,
+            hasBeatFromPreprocess = false,
             errorMessage = null
         )
     }
@@ -57,6 +72,7 @@ class CoverViewModel(
             pendingAudioBase64 = null
             return
         }
+        clearDeferredPreprocessExtras()
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPreparingLocalAudio = true, errorMessage = null)
             try {
@@ -68,6 +84,8 @@ class CoverViewModel(
                     isPreparingLocalAudio = false,
                     referenceAudioUrl = "",
                     localPickedLabel = displayName.ifBlank { "已选本地音频" },
+                    hasDtwFromPreprocess = false,
+                    hasBeatFromPreprocess = false,
                     errorMessage = null
                 )
             } catch (e: Exception) {
@@ -105,8 +123,11 @@ class CoverViewModel(
 
         viewModelScope.launch {
             runCatching {
+                clearDeferredPreprocessExtras()
                 _uiState.value = _uiState.value.copy(
                     isPreprocessing = true,
+                    hasDtwFromPreprocess = false,
+                    hasBeatFromPreprocess = false,
                     errorMessage = null
                 )
                 withTimeout(PREPROCESS_TIMEOUT_MS) {
@@ -118,11 +139,16 @@ class CoverViewModel(
                 }
             }.onSuccess { resp ->
                 val lyrics = resp.formatted_lyrics.orEmpty()
+                deferredAudioDuration = resp.audio_duration
+                deferredDtw = resp.dtw_result
+                deferredBeat = resp.beat_result
                 _uiState.value = _uiState.value.copy(
                     isPreprocessing = false,
                     coverFeatureId = resp.cover_feature_id.orEmpty(),
                     audioDuration = resp.audio_duration,
                     structureResult = resp.structure_result.orEmpty(),
+                    hasDtwFromPreprocess = resp.dtw_result != null,
+                    hasBeatFromPreprocess = resp.beat_result != null,
                     lyrics = lyrics.ifBlank { _uiState.value.lyrics },
                     errorMessage = null
                 )
@@ -164,7 +190,14 @@ class CoverViewModel(
                     errorMessage = null,
                     outputAudioUrl = ""
                 )
-                repository.generateCover(prompt = prompt, lyrics = lyrics, coverFeatureId = featureId)
+                repository.generateCover(
+                    prompt = prompt,
+                    lyrics = lyrics,
+                    coverFeatureId = featureId,
+                    audioDuration = deferredAudioDuration ?: _uiState.value.audioDuration,
+                    dtwResult = deferredDtw,
+                    beatResult = deferredBeat
+                )
             }.onSuccess { resp ->
                 val out = (
                     resp.audio_url?.takeIf { it.isNotBlank() }

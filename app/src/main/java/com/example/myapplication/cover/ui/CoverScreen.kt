@@ -191,6 +191,8 @@ fun CoverScreen(
                 value = buildString {
                     appendLine("cover_feature_id=${state.coverFeatureId}")
                     appendLine("audio_duration=${state.audioDuration}")
+                    appendLine("dtw_result=${if (state.hasDtwFromPreprocess) "已带回" else "未带回"}")
+                    appendLine("beat_result=${if (state.hasBeatFromPreprocess) "已带回" else "未带回"}")
                     appendLine("structure_result=${state.structureResult}")
                 }.trim(),
                 onValueChange = {},

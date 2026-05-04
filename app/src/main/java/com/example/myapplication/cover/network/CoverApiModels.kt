@@ -1,5 +1,7 @@
 package com.example.myapplication.cover.network
 
+import com.google.gson.JsonElement
+
 data class CoverPreprocessRequest(
     val audio_url: String? = null,
     val audio_base64: String? = null
@@ -10,13 +12,18 @@ data class CoverPreprocessResponse(
     val formatted_lyrics: String? = null,
     val audio_duration: Double? = null,
     val structure_result: String? = null,
+    val dtw_result: JsonElement? = null,
+    val beat_result: JsonElement? = null,
     val raw: Map<String, Any?>? = null
 )
 
 data class CoverGenerateRequest(
     val prompt: String,
     val lyrics: String,
-    val cover_feature_id: String
+    val cover_feature_id: String,
+    val audio_duration: Double? = null,
+    val dtw_result: JsonElement? = null,
+    val beat_result: JsonElement? = null
 )
 
 data class CoverGenerateResponse(
