@@ -37,6 +37,7 @@ class MiniMaxMusicService:
         return self._real_generation(prompt=prompt, duration=duration)
 
     def cover_preprocess(self, audio_url: str | None = None, audio_base64: str | None = None) -> dict:
+        """POST /v1/music_cover_preprocess — 文档：https://platform.minimaxi.com/docs/api-reference/music-cover-preprocess"""
         if self.use_mock:
             return {
                 "cover_feature_id": f"mock-cover-{uuid4().hex[:12]}",
@@ -84,6 +85,7 @@ class MiniMaxMusicService:
         if structure_result is None:
             structure_result = self._stringify_structure(root_dict.get("structure_result"))
 
+        # 官方 OpenAPI 响应字段见文档；若网关额外返回 dtw_result / beat_result，付费 music-cover 第二步可能会用到（未写入公开 schema）。
         dtw_blob = self._find_first_blob(data, ("dtw_result", "dtwResult"))
         beat_blob = self._find_first_blob(data, ("beat_result", "beatResult"))
 
@@ -106,6 +108,12 @@ class MiniMaxMusicService:
         dtw_result: object | None = None,
         beat_result: object | None = None,
     ) -> dict:
+        """POST /v1/music_generation — 文档：https://platform.minimaxi.com/docs/api-reference/music-generation
+
+        两步翻唱：model 为 ``music-cover`` / ``music-cover-free``，与 ``cover_feature_id`` 互斥于 ``audio_url`` / ``audio_base64``。
+        公开文档列出的请求体字段以外，部分网关在对 ``music-cover``（付费）校验时会要求附带 ``audio_duration``、``dtw_result``、``beat_result``，
+        故仅在 model 为 ``music-cover`` 时附加这三项（若有）；``music-cover-free`` 严格按公开 schema，不附加以免多余字段触发校验。
+        """
         if self.use_mock:
             demo_mp3 = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
             return {
@@ -133,13 +141,14 @@ class MiniMaxMusicService:
                 "format": os.getenv("MINIMAX_AUDIO_FORMAT", "mp3"),
             },
         }
-        # music-cover（非 free）第二步常见要求：与 preprocess 返回的分析字段一并提交
-        if audio_duration is not None:
-            payload["audio_duration"] = audio_duration
-        if dtw_result is not None:
-            payload["dtw_result"] = self._coerce_json_blob(dtw_result)
-        if beat_result is not None:
-            payload["beat_result"] = self._coerce_json_blob(beat_result)
+        # 与 minimaxi.com 公开 schema 对齐：限免模型仅传文档所列字段；付费 music-cover 按需附带网关额外要求的分析字段
+        if self.cover_generate_model == "music-cover":
+            if audio_duration is not None:
+                payload["audio_duration"] = audio_duration
+            if dtw_result is not None:
+                payload["dtw_result"] = self._coerce_json_blob(dtw_result)
+            if beat_result is not None:
+                payload["beat_result"] = self._coerce_json_blob(beat_result)
 
         timeout_tuple = (30, self.http_read_timeout_s)
         resp = self._post_json(url, headers=headers, body=payload, timeout_tuple=timeout_tuple)

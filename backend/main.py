@@ -128,6 +128,19 @@ def cover_preprocess(payload: CoverPreprocessRequest) -> CoverPreprocessResponse
 
 @app.post("/api/cover/generate", response_model=CoverGenerateResponse)
 def cover_generate(payload: CoverGenerateRequest) -> CoverGenerateResponse:
+    # https://platform.minimaxi.com/docs/api-reference/music-generation — music-cover / music-cover-free + cover_feature_id 时 lyrics 必填 [10,1000]；prompt [10,300]
+    pl = payload.prompt.strip()
+    ly = payload.lyrics.strip()
+    if len(pl) < 10 or len(pl) > 300:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="prompt 需符合 MiniMax 翻唱要求：长度 [10, 300] 字符（当前 {}）".format(len(pl)),
+        )
+    if len(ly) < 10 or len(ly) > 1000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="使用 cover_feature_id 时 lyrics 必填：长度 [10, 1000] 字符（当前 {}）".format(len(ly)),
+        )
     try:
         result = minimax_service.cover_generate(
             prompt=payload.prompt.strip(),
